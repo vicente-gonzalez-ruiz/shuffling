@@ -1,3 +1,5 @@
+# Sin terminar
+
 import numpy as np
 
 def random(vol, mean=0.0, std_dev=1.0):
@@ -41,3 +43,87 @@ def random(vol, mean=0.0, std_dev=1.0):
   #print("x", flattened_x_coords)
   randomized_vol[randomized_z_coords, randomized_y_coords, randomized_x_coords] = vol[flattened_z_coords, flattened_y_coords, flattened_x_coords]
   return randomized_vol
+
+# https://stackoverflow.com/questions/62436299/how-to-lightly-shuffle-a-list-in-python
+orderliness = 0.75
+
+def tuplify(x, y):
+  return (orderliness * y + np.random.normal(0, 1), x)
+
+############
+
+def shake(x, y, std_dev=1.0):
+  displacements = np.random.normal(0, std_dev, len(x))
+  #print(f"{np.min(displacements):.2f} {np.average(np.abs(displacements)):.2f} {np.max(displacements):.2f}", end=' ')
+  return np.stack((y + displacements, x), axis=1)
+
+############
+
+def randomize(vol, mean=0.0, std_dev=1.0):
+  print(vol.shape)
+  print(std_dev)
+  randomized_vol = np.empty_like(vol)
+  
+  # Randomization in X
+  #values = np.arange(1, vol.shape[2]+1).astype(np.int32)
+  values = np.arange(vol.shape[2]).astype(np.int32)
+  for z in range(vol.shape[0]):
+    print(z, end=' ', flush=True)
+    for y in range(vol.shape[1]):
+      #pairs = np.array(list(map(tuplify, values, range(len(values)))), dtype=np.int32)
+      pairs = shake(values, np.arange(len(values)), std_dev).astype(np.int32)
+      pairs = pairs[pairs[:, 0].argsort()]
+      randomized_vol[z, y, values] = vol[z, y, pairs[:, 1]]
+
+  # Randomization in Y
+  values = np.arange(vol.shape[1]).astype(np.int32)
+  for z in range(vol.shape[0]):
+    print(z, end=' ', flush=True)
+    for x in range(vol.shape[2]):
+      #pairs = np.array(list(map(tuplify, values, range(len(values)))), dtype=np.int32)
+      pairs = shake(values, np.arange(len(values)), std_dev).astype(np.int32)
+      pairs = pairs[pairs[:, 0].argsort()]
+      randomized_vol[z, values, x] = vol[z, pairs[:, 1], x]
+
+  # Randomization in Z
+  values = np.arange(vol.shape[0]).astype(np.int32)
+  for y in range(vol.shape[1]):
+    print(y, end=' ', flush=True)
+    for x in range(vol.shape[2]):
+      #pairs = np.array(list(map(tuplify, values, range(len(values)))), dtype=np.int32)
+      pairs = shake(values, np.arange(len(values)), std_dev).astype(np.int32)
+      pairs = pairs[pairs[:, 0].argsort()]
+      randomized_vol[values, y, x] = vol[pairs[:, 1], y , x]
+
+  return randomized_vol
+
+def project_A_to_B(A, B, estimator, block_size):
+  output_vz, output_vy, output_vx, output_confidence = estimator.calculate_flow(
+    A, B,
+    start_point=(0, 0, 0),
+    total_vol=(A.shape[0], A.shape[1], A.shape[2]),
+    sub_volume=block_size,
+    overlap=(8, 8, 8),
+    threadsperblock=(8, 8, 8)
+  )
+  print("min flow", np.min(output_vx), np.min(output_vy), np.min(output_vz))
+  print("average abs(flow)", np.average(np.abs(output_vx)), np.average(np.abs(output_vy)), np.average(np.abs(output_vz)))
+  print("max flow", np.max(output_vx), np.max(output_vy), np.max(output_vz))
+  projection = opticalflow3D.helpers.generate_inverse_image(A, output_vx, output_vy, output_vz, use_gpu=False)
+  return projection
+
+#randomize(np.zeros(shape=(3,3,3)))
+#quit()
+vol_MRC = mrcfile.open(args.input)
+noisy = vol_MRC.data
+block_size = (noisy.shape[0]//2, noisy.shape[1]//2, noisy.shape[2]//2)
+
+for i in range(8):
+  print(args[i+1])
+  with mrcfile.new(args[i+1], overwrite=True) as mrc:
+    A = noisy
+    B = randomize(noisy, std_dev=16.0)
+    C = project_A_to_B(A, B, estimator, block_size)
+    mrc.set_data(C)
+    mrc.data
+
