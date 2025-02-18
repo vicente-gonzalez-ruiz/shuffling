@@ -7,6 +7,7 @@ import logging
 logging.basicConfig(format="[%(filename)s:%(lineno)s %(funcName)s()] %(message)s")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 estimator = OF_Estimation(logger)
 projector = Projection(logger)
@@ -41,13 +42,14 @@ def randomize_image(image, std_dev=16.0):
 
     return randomized_image
 
-def project_A_to_B(A, B, estimator):
+def project_A_to_B(A, B, window_side=5, N_poly=1.2):
   zeros = np.zeros((A.shape[0], A.shape[1], 2), dtype=np.float32)
-  MVs = estimator.pyramid_get_flow(target=B, reference=A, flow=zeros)
+  MVs = estimator.pyramid_get_flow(target=A, reference=B, flow=zeros, window_side=window_side, N_poly=N_poly)
   projection = projector.remap(A, MVs)
   return projection
 
-def randomize_and_project(image, std_dev=16.0, estimator):
+def randomize_and_project(image, std_dev=16.0, window_side=5, N_poly=1.2):
   randomized_image = randomize_image(image, std_dev)
-  projection = project_A_to_B(randomized_image, image, estimator) # Ojo, pueden estar al revés
+  projection = project_A_to_B(A=image, B=randomized_image, window_side=window_side, N_poly=N_poly) # Ojo, pueden estar al revés
   return projection
+  return randomized_image
