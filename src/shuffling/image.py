@@ -7,7 +7,7 @@ import logging
 logging.basicConfig(format="[%(filename)s:%(lineno)s %(funcName)s()] %(message)s")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-logger.setLevel(logging.DEBUG)
+#logger.setLevel(logging.DEBUG)
 
 estimator = OF_Estimation(logger)
 projector = Projection(logger)
@@ -16,7 +16,7 @@ def shake(x, y, std_dev=1.0):
     """
     Apply Gaussian noise to the given indices and return a sorted mapping.
     """
-    displacements = np.random.normal(0, std_dev, len(x))
+    displacements = np.random.normal(loc=0, scale=std_dev, size=len(x))
     return np.stack((y + displacements, x), axis=1)
 
 def randomize_image(image, std_dev=16.0):
@@ -42,14 +42,20 @@ def randomize_image(image, std_dev=16.0):
 
     return randomized_image
 
-def project_A_to_B(A, B, window_side=5, N_poly=1.2):
+def project_A_to_B(A, B, window_side=5, sigma_poly=1.2):
   zeros = np.zeros((A.shape[0], A.shape[1], 2), dtype=np.float32)
-  MVs = estimator.pyramid_get_flow(target=A, reference=B, flow=zeros, window_side=window_side, N_poly=N_poly)
+  MVs = estimator.pyramid_get_flow(target=A, reference=B, flow=zeros, window_side=window_side, sigma_poly=sigma_poly)
   projection = projector.remap(A, MVs)
   return projection
 
-def randomize_and_project(image, std_dev=16.0, window_side=5, N_poly=1.2):
+def randomize_and_project(image, std_dev=3.0, window_side=5, sigma_poly=1.2):
   randomized_image = randomize_image(image, std_dev)
-  projection = project_A_to_B(A=image, B=randomized_image, window_side=window_side, N_poly=N_poly) # Ojo, pueden estar al revés
+  projection = project_A_to_B(A=image, B=randomized_image, window_side=window_side, sigma_poly=sigma_poly) # Ojo, pueden estar al revés
   return projection
-  return randomized_image
+  #return randomized_image
+
+def randomize_and_project2(image, std_dev=3.0, window_side=5, sigma_poly=1.2):
+  randomized_image = randomize_image(image, std_dev)
+  projection = project_A_to_B(B=image, A=randomized_image, window_side=window_side, sigma_poly=sigma_poly) # Ojo, pueden estar al revés
+  return projection
+  #return randomized_image
