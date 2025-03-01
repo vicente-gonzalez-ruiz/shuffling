@@ -1,4 +1,5 @@
 import numpy as np
+import cv2
 
 from motion_estimation._2D.farneback_OpenCV import OF_Estimation
 from motion_estimation._2D.project import Projection
@@ -45,7 +46,10 @@ def randomize_image(image, std_dev=16.0):
 def project_A_to_B(A, B, window_side=5, sigma_poly=1.2):
   zeros = np.zeros((A.shape[0], A.shape[1], 2), dtype=np.float32)
   MVs = estimator.pyramid_get_flow(target=A, reference=B, flow=zeros, window_side=window_side, sigma_poly=sigma_poly)
-  projection = projector.remap(A, MVs)
+  try:
+    projection = projector.remap(A, MVs)
+  except cv2.error:
+    return A
   return projection
 
 def randomize_and_project(image, std_dev=3.0, window_side=5, sigma_poly=1.2):
@@ -54,8 +58,108 @@ def randomize_and_project(image, std_dev=3.0, window_side=5, sigma_poly=1.2):
   return projection
   #return randomized_image
 
+def randomize_and_project3(image, std_dev=3.0, window_side=5, sigma_poly=1.2):
+  randomized_image = randomize_image(image, std_dev)
+#  projection = project_A_to_B(A=image, B=randomized_image, window_side=window_side, sigma_poly=sigma_poly) # Ojo, pueden estar al revés
+  #return projection
+  return randomized_image
+
 def randomize_and_project2(image, std_dev=3.0, window_side=5, sigma_poly=1.2):
   randomized_image = randomize_image(image, std_dev)
   projection = project_A_to_B(B=image, A=randomized_image, window_side=window_side, sigma_poly=sigma_poly) # Ojo, pueden estar al revés
   return projection
   #return randomized_image
+
+def chessboard_interpolate_blacks(image):
+    height, width = image.shape[:2]
+    output_image = image.copy()
+
+    y, x = np.mgrid[:height, :width]
+    mask = (x + y) % 2 != 0
+
+    # Create shifted versions of the image for neighbors
+    if image.ndim == 3:  # Color image
+        left = np.pad(image[:, :-1], ((0, 0), (1, 0), (0, 0)), mode='edge')
+        right = np.pad(image[:, 1:], ((0, 0), (0, 1), (0, 0)), mode='edge')
+        up = np.pad(image[:-1, :], ((1, 0), (0, 0), (0, 0)), mode='edge')
+        down = np.pad(image[1:, :], ((0, 1), (0, 0), (0, 0)), mode='edge')
+        #upleft = np.pad(image[:-1, :-1],((1,0),(1,0),(0,0)), mode='edge')
+        #upright = np.pad(image[:-1, 1:],((1,0),(0,1),(0,0)), mode='edge')
+        #downleft = np.pad(image[1:, :-1],((0,1),(1,0),(0,0)), mode='edge')
+        #downright = np.pad(image[1:, 1:],((0,1),(0,1),(0,0)), mode='edge')
+    else:  # Grayscale image
+        left = np.pad(image[:, :-1], ((0, 0), (1, 0)), mode='edge')
+        right = np.pad(image[:, 1:], ((0, 0), (0, 1)), mode='edge')
+        up = np.pad(image[:-1, :], ((1, 0), (0, 0)), mode='edge')
+        down = np.pad(image[1:, :], ((0, 1), (0, 0)), mode='edge')
+        #upleft = np.pad(image[:-1, :-1],((1,0),(1,0)), mode='edge')
+        #upright = np.pad(image[:-1, 1:],((1,0),(0,1)), mode='edge')
+        #downleft = np.pad(image[1:, :-1],((0,1),(1,0)), mode='edge')
+        #downright = np.pad(image[1:, 1:],((0,1),(0,1)), mode='edge')
+
+    # Calculate the average of neighbors for "black" pixels
+    #neighbors_avg = np.mean(np.stack([left, right, up, down, upleft, upright, downleft, downright], axis=-1), axis=-1)
+    neighbors_avg = np.mean(np.stack([left, right, up, down], axis=-1), axis=-1)
+
+    # Apply the interpolated values to the "black" pixels
+    output_image[mask] = neighbors_avg[mask]
+    #output_image[mask] = 0
+
+    return output_image
+
+def chessboard_interpolate_whites(image):
+    height, width = image.shape[:2]
+    output_image = image.copy()
+
+    y, x = np.mgrid[:height, :width]
+    mask = (x + y) % 2 == 0
+
+    # Create shifted versions of the image for neighbors
+    if image.ndim == 3:  # Color image
+        left = np.pad(image[:, :-1], ((0, 0), (1, 0), (0, 0)), mode='edge')
+        right = np.pad(image[:, 1:], ((0, 0), (0, 1), (0, 0)), mode='edge')
+        up = np.pad(image[:-1, :], ((1, 0), (0, 0), (0, 0)), mode='edge')
+        down = np.pad(image[1:, :], ((0, 1), (0, 0), (0, 0)), mode='edge')
+        #upleft = np.pad(image[:-1, :-1],((1,0),(1,0),(0,0)), mode='edge')
+        #upright = np.pad(image[:-1, 1:],((1,0),(0,1),(0,0)), mode='edge')
+        #downleft = np.pad(image[1:, :-1],((0,1),(1,0),(0,0)), mode='edge')
+        #downright = np.pad(image[1:, 1:],((0,1),(0,1),(0,0)), mode='edge')
+    else:  # Grayscale image
+        left = np.pad(image[:, :-1], ((0, 0), (1, 0)), mode='edge')
+        right = np.pad(image[:, 1:], ((0, 0), (0, 1)), mode='edge')
+        up = np.pad(image[:-1, :], ((1, 0), (0, 0)), mode='edge')
+        down = np.pad(image[1:, :], ((0, 1), (0, 0)), mode='edge')
+        #upleft = np.pad(image[:-1, :-1],((1,0),(1,0)), mode='edge')
+        #upright = np.pad(image[:-1, 1:],((1,0),(0,1)), mode='edge')
+        #downleft = np.pad(image[1:, :-1],((0,1),(1,0)), mode='edge')
+        #downright = np.pad(image[1:, 1:],((0,1),(0,1)), mode='edge')
+
+    # Calculate the average of neighbors for "white" pixels
+    #neighbors_avg = np.mean(np.stack([left, right, up, down, upleft, upright, downleft, downright], axis=-1), axis=-1)
+    neighbors_avg = np.mean(np.stack([left, right, up, down], axis=-1), axis=-1)
+
+    # Apply the interpolated values to the "white" pixels
+    output_image[mask] = neighbors_avg[mask]
+    #output_image[mask] = 0
+    return output_image
+
+def chessboard_blacks(image):
+    height, width = image.shape[:2]
+    output_image = image.copy()
+
+    y, x = np.mgrid[:height, :width]
+    mask = (x + y) % 2 != 0
+    output_image[mask] = 0
+
+    return output_image
+
+def chessboard_whites(image):
+    height, width = image.shape[:2]
+    output_image = image.copy()
+
+    y, x = np.mgrid[:height, :width]
+    mask = (x + y) % 2 == 0
+    output_image[mask] = 0
+    return output_image
+
+
