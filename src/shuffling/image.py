@@ -162,4 +162,30 @@ def chessboard_whites(image):
     output_image[mask] = 0
     return output_image
 
+def chessboard(image):
+    height, width = image.shape[:2]
+    blacks_image = image.copy()
+    whites_image = image.copy()
+    y, x = np.mgrid[:height, :width]
+    blacks_mask = (x + y) % 2 != 0
+    whites_mask = (x + y) % 2 == 0
+    blacks_image[blacks_mask] = 0
+    whites_image[whites_mask] = 0
+    return blacks_image, whites_image
+
+def subsampled_chessboard(image):
+    '''Takes an image as input and splits it into four sub-images
+    based on a chessboard-like subsampling pattern'''
+    # https://www.nature.com/articles/s41467-019-11024-z
+    # https://github.com/sakoho81/miplib/blob/public/miplib/processing/image.py#L133
+    shape = image.shape
+    odd_index = list(np.arange(1, shape[i], 2) for i in range(len(shape))) # There are two lists because the imagen can be rectangular
+    even_index = list(np.arange(0, shape[i], 2) for i in range(len(shape)))
+    odd_odd = image[odd_index[0], :][:, odd_index[1]]
+    even_even = image[even_index[0], :][:, even_index[1]]
+    odd_even = image[odd_index[0], :][:, even_index[1]]
+    even_odd = image[even_index[0], :][:, odd_index[1]]
+    return odd_odd, even_even, odd_even, even_odd
+
+
 
