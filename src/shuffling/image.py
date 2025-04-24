@@ -23,7 +23,7 @@ def shake(x, y, std_dev=1.0):
 def randomize_image(image, std_dev=16.0):
     """
     Apply a controlled randomization to a 2D image.
-    This perturbs pixel positions along the X and Y axes while maintaining structure.
+    This perturbs pixel positions along the X and Y axes while maintaining structures.
     """
     randomized_image = np.empty_like(image)
     
@@ -45,7 +45,11 @@ def randomize_image(image, std_dev=16.0):
 
 def project_A_to_B(A, B, window_side=5, sigma_poly=1.2):
   zeros = np.zeros((A.shape[0], A.shape[1], 2), dtype=np.float32)
-  MVs = estimator.pyramid_get_flow(target=A, reference=B, flow=zeros, window_side=window_side, sigma_poly=sigma_poly)
+  MVs = estimator.pyramid_get_flow(
+      target=A, reference=B,
+      flow=zeros,
+      window_side=window_side,
+      sigma_poly=sigma_poly)
   try:
     projection = projector.remap(A, MVs)
   except cv2.error:
@@ -54,7 +58,11 @@ def project_A_to_B(A, B, window_side=5, sigma_poly=1.2):
 
 def randomize_and_project(image, std_dev=3.0, window_side=5, sigma_poly=1.2):
   randomized_image = randomize_image(image, std_dev)
-  projection = project_A_to_B(A=image, B=randomized_image, window_side=window_side, sigma_poly=sigma_poly) # Ojo, pueden estar al revés
+  projection = project_A_to_B(
+      A=image,
+      B=randomized_image, # Ojo, pueden estar al revés
+      window_side=window_side,
+      sigma_poly=sigma_poly) 
   return projection
   #return randomized_image
 

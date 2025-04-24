@@ -127,3 +127,4 @@ for i in range(8):
     mrc.set_data(C)
     mrc.data
 
+# See https://github.com/sakoho81/miplib/blob/public/miplib/processing/image.py#L133
