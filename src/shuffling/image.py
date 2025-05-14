@@ -195,5 +195,56 @@ def subsampled_chessboard(image):
     even_odd = image[even_index[0], :][:, odd_index[1]]
     return odd_odd, even_even, odd_even, even_odd
 
+import numpy as np
+
+def fade_image_margins(image_array, fade_width=0):
+    """
+    Smooths the margins of a grayscale image (NumPy array with float pixels)
+    by fading the intensity of the margin pixels towards zero.
+
+    Args:
+        image_array (np.ndarray): A NumPy array representing the grayscale image
+                                    (shape: (height, width)) with float pixel values
+                                    (e.g., between 0.0 and 1.0 or 0.0 and 255.0).
+        fade_width_pixels (int): The width of the fade effect from the edge inwards, in pixels.
+
+    Returns:
+        np.ndarray: A NumPy array representing the grayscale image with faded margins (float pixels).
+    """
+    height, width = image_array.shape
+
+    modified_array = image_array.astype(float)  # Convert to float for precise calculations
+
+    # Create Gaussian kernel for fading (1D)
+    x = np.linspace(0, 1, fade_width)
+    fade_curve = np.exp(-(x)**2)  # Adjust multiplier for sharper/softer fade
+
+    # Apply fading to top margin
+    for y in range(fade_width):
+        weight = fade_curve[fade_width - 1 - y]
+        #modified_array[y, :] *= (1 - weight)
+        modified_array[y, :] *= weight
+
+    # Apply fading to bottom margin
+    for y in range(fade_width):
+        weight = fade_curve[fade_width - y - 1]
+        #modified_array[height - 1 - y, :] *= (1 - weight)
+        modified_array[height - 1 - y, :] *= weight
+
+    # Apply fading to left margin
+    for x in range(fade_width):
+        weight = fade_curve[fade_width - 1 - x]
+        #modified_array[:, x] *= (1 - weight)
+        modified_array[:, x] *= weight
+
+    # Apply fading to right margin
+    for x in range(fade_width):
+        weight = fade_curve[fade_width - x - 1]
+        #modified_array[:, width - 1 - x] *= (1 - weight)
+        modified_array[:, width - 1 - x] *= weight
+
+    return modified_array.astype(np.uint8)  # Convert back to uint8
+
+
 
 
